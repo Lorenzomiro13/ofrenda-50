@@ -10,7 +10,39 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
-<style>.wrap{max-width:960px}</style>
+<style>
+.wrap{max-width:1040px}
+.plist{margin-top:14px;border:1px solid #e3e7ee;border-radius:14px;max-height:640px;overflow:auto;background:#fff}
+.phead,.prow{display:grid;grid-template-columns:minmax(0,2.1fr) minmax(0,1.5fr) 130px 150px 130px;gap:14px;align-items:center;padding:12px 16px}
+.phead{position:sticky;top:0;z-index:1;background:#f7f9fc;border-bottom:1px solid #e3e7ee;font-size:12px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#6b7280}
+.prow{border-bottom:1px solid #eef1f6}
+.prow:last-child{border-bottom:0}
+.prow:hover{background:#fafbfd}
+.who{display:flex;gap:12px;align-items:center;min-width:0}
+.ini{flex:none;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:#e7ecf5;color:#14284b;font-weight:800;font-size:13px}
+.ini.rep{background:#14284b;color:#f3d39b}
+.nm{min-width:0}
+.nm b{display:block;font-size:15px;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nm small{display:block;color:#6b7280;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cargo{font-size:13px;color:#374151;line-height:1.35}
+.cargo .badge{display:inline-block;font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;background:#14284b;color:#fff;border-radius:5px;padding:2px 6px;margin-bottom:3px}
+.pill{display:inline-block;font-size:12px;font-weight:800;padding:4px 10px;border-radius:99px}
+.pill.ok{background:#e1f2e8;color:#1f6b45}.pill.no{background:#eef1f6;color:#4b5563}.pill.pend{background:#fdf0d5;color:#8a5a00}
+.ramo{font-size:13px;color:#374151}
+.ramo.done{color:#1f6b45;font-weight:700}
+.act .btn{min-height:36px;padding:6px 12px;font-size:13.5px;width:100%}
+.muted-dash{color:#c0c6d0}
+dialog{border:0;border-radius:18px;padding:22px;width:min(440px,calc(100% - 32px));box-shadow:0 20px 60px rgba(15,25,50,.3)}
+dialog::backdrop{background:rgba(15,25,50,.45)}
+@media(max-width:760px){
+  .phead{display:none}
+  .prow{grid-template-columns:1fr auto;grid-template-areas:"who est" "cargo cargo" "ramo act";row-gap:8px}
+  .prow .who{grid-area:who}.prow .cargo{grid-area:cargo;padding-left:50px}.prow .est{grid-area:est}
+  .prow .rcell{grid-area:ramo;padding-left:50px;align-self:center}.rcell .muted-dash{display:none}
+  .nm b,.nm small{white-space:normal}.prow .act{grid-area:act}
+  .cargo:empty,.ramo:empty{display:none}
+}
+</style>
 </head>
 <body>
 <div class="topbar">
@@ -83,6 +115,9 @@
 </dialog>
 <script src="common.js"></script>
 <script>
+/* Funciona aunque common.js sea una versión antigua */
+const fmtNombre=typeof tc==='function'?tc:(t=>String(t||''));
+const fmtRep=typeof compactRep==='function'?compactRep:(t=>String(t||''));
 let people=[],filtro='',sel=null,timer=null;
 const pct=(a,b)=>b?Math.round(a/b*100):0;
 function tile(k,v,of,accent){return `<div class="tile ${accent?'accent':''}"><div class="k">${k}</div><div class="v">${v}${of!=null?` <small>de ${of}</small>`:''}</div>${of!=null?`<div class="meter"><i style="width:${pct(v,of)}%"></i></div>`:''}</div>`;}
@@ -112,14 +147,18 @@ function filtered(){
 }
 function showPeople(){
   const l=filtered();$('count').textContent='· '+l.length;
-  $('people').innerHTML=l.length?l.slice(0,400).map(x=>{
-    const ramo=x.flor?(x.ramo==='Entregado'?'Ramo entregado':'Con flor · ramo pendiente'):(x.estado==='Asiste'?'Sin flor':'');
+  const cls={'Asiste':'ok','No asiste':'no','Sin responder':'pend'};
+  const head='<div class="phead"><span>Fallero/a</span><span>Representante</span><span>Estado</span><span>Ramo</span><span></span></div>';
+  $('people').innerHTML=l.length?head+l.slice(0,400).map(x=>{
+    const ramo=x.flor?(x.ramo==='Entregado'?'<span class="ramo done">Entregado</span>':'<span class="ramo">Con flor · pendiente</span>'):(x.estado==='Asiste'?'<span class="ramo">Sin flor</span>':'<span class="muted-dash">—</span>');
     const puede=x.estado==='Asiste'&&x.flor&&x.ramo!=='Entregado';
+    const sub=[x.grupo,x.email].filter(Boolean).join(' · ');
     return `<div class="prow">
-      <div class="pmain"><b>${clean(x.nombre)}</b> <span class="tag">${clean(x.grupo)}</span>${x.rep?` <span class="tag rep">Representante</span><span class="rep-line">${clean(x.rep)}</span>`:''}
-        ${x.email?`<span class="rep-line">${clean(x.email)}${x.fecha?' · '+clean(x.fecha):''}</span>`:''}</div>
-      <div class="pside"><span class="tag" style="${EST[x.estado]||''}">${clean(x.estado)}</span>${ramo?`<span class="rep-line">${ramo}</span>`:''}
-        ${puede?`<button class="btn ghost sm" type="button" data-qr="${clean(x.id)}">Reenviar QR</button>`:''}</div>
+      <div class="who"><span class="ini ${x.rep?'rep':''}">${clean(initials(x.nombre))}</span><div class="nm"><b title="${clean(x.nombre)}">${clean(fmtNombre(x.nombre))}</b><small title="${clean(sub)}">${clean(sub)}</small></div></div>
+      <div class="cargo">${x.rep?`<span class="badge">Representante</span><br>${fmtRep(x.rep).split(' · ').map(c=>`<span style="white-space:nowrap">${clean(c)}</span>`).join(' · ')}`:''}</div>
+      <div class="est"><span class="pill ${cls[x.estado]||'no'}">${clean(x.estado)}</span></div>
+      <div class="rcell">${ramo}</div>
+      <div class="act">${puede?`<button class="btn ghost" type="button" data-qr="${clean(x.id)}">Reenviar QR</button>`:''}</div>
     </div>`;}).join('')+(l.length>400?'<div class="empty">Mostrando 400. Usa el buscador.</div>':''):'<div class="empty">Nadie con ese filtro.</div>';
 }
 $('tabs').addEventListener('click',e=>{const b=e.target.closest('.chip');if(!b)return;filtro=b.dataset.f;$('tabs').querySelectorAll('.chip').forEach(c=>c.setAttribute('aria-pressed',c===b));showPeople();});
