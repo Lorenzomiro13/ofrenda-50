@@ -10,6 +10,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
+<style>
+.tag-rep{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;padding:3px 8px;border-radius:6px;background:#14284b;color:#fff;margin-left:4px;vertical-align:1px}
+.rep-cargos{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.rep-cargos span{font-size:12.5px;font-weight:700;color:#14284b;background:#e7ecf5;border-radius:99px;padding:3px 10px;white-space:nowrap}
+</style>
 </head>
 <body>
 
@@ -106,7 +111,8 @@
 const token=new URLSearchParams(location.search).get('editar')||'';
 let people=[],chosen=new Map(),editing=false,group='',justAdded='';
 const byId=id=>people.find(p=>p.id===id);
-const repBadge=p=>p&&p.rep?`<span class="tag rep">Representante</span><span class="rep-line">${clean(p.rep)}</span>`:'';
+const repBadge=p=>p&&p.rep?` <span class="tag-rep">Representante</span>`:'';
+const repDetalle=p=>p&&p.rep?`<span class="rep-cargos">${compactRep(p.rep).split(' · ').map(c=>`<span>${clean(c)}</span>`).join('')}</span>`:'';
 
 /* ---------- Paso 1: búsqueda ---------- */
 function renderResults(){
@@ -116,8 +122,8 @@ function renderResults(){
   if(!list.length){$('results').innerHTML='<div class="empty">No encontramos a nadie con ese nombre. Prueba solo con el apellido.</div>';return;}
   const max=50;
   $('results').innerHTML='<div class="results">'+list.slice(0,max).map(p=>p.ocupado
-    ?`<button type="button" class="result" disabled><span class="avatar">${clean(initials(p.nombre))}</span><span class="nm">${clean(p.nombre)}<br><span class="tag">${clean(p.grupo)}</span>${repBadge(p)}</span><span class="done">Ya inscrito/a</span></button>`
-    :`<button type="button" class="result" data-id="${clean(p.id)}"><span class="avatar">${clean(initials(p.nombre))}</span><span class="nm">${clean(p.nombre)}<br><span class="tag">${clean(p.grupo)}</span>${repBadge(p)}</span><span class="plus" aria-label="Añadir"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span></button>`
+    ?`<button type="button" class="result" disabled><span class="avatar">${clean(initials(p.nombre))}</span><span class="nm">${clean(tc(p.nombre))}<br><span class="tag">${clean(p.grupo)}</span>${repBadge(p)}</span><span class="done">Ya inscrito/a</span></button>`
+    :`<button type="button" class="result" data-id="${clean(p.id)}"><span class="avatar">${clean(initials(p.nombre))}</span><span class="nm">${clean(tc(p.nombre))}<br><span class="tag">${clean(p.grupo)}</span>${repBadge(p)}</span><span class="plus" aria-label="Añadir"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span></button>`
   ).join('')+(list.length>max?`<div class="empty">Hay ${list.length-max} más. Afina la búsqueda.</div>`:'')+'</div>';
 }
 $('search').addEventListener('input',renderResults);
@@ -142,7 +148,7 @@ function renderPeople(){
   $('people').innerHTML=[...chosen].map(([id,p])=>{
     const m=byId(id)||{nombre:id,grupo:''};
     return `<div class="person ${isComplete(p)?'complete':''} ${id===justAdded?'new':''}" id="p_${clean(id)}">
-      <div class="person-head"><span class="avatar">${clean(initials(m.nombre))}</span><div class="who"><b>${clean(m.nombre)}</b><span class="tag">${clean(m.grupo)}</span>${repBadge(m)}</div>
+      <div class="person-head"><span class="avatar">${clean(initials(m.nombre))}</span><div class="who"><b>${clean(tc(m.nombre))}</b><span class="tag">${clean(m.grupo)}</span>${repBadge(m)}${repDetalle(m)}</div>
       ${editing?'':`<button type="button" class="icon-btn" data-remove="${clean(id)}" aria-label="Quitar a ${clean(m.nombre)}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>`}</div>
       <div class="q">¿Participa en la ofrenda?</div>
       ${seg(id,'participa',[[true,'Sí, participa','yes'],[false,'No participa','no']],p.participa)}

@@ -204,3 +204,6 @@ footer.foot a{color:var(--muted)}
   .pass-top{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .pass-tear::before,.pass-tear::after{background:#fff}
 }
+
+/* Buscador: solo la etiqueta «Representante», sin cargos */
+.result .rep-line,.result .rep-cargos{display:none!important}
