@@ -147,8 +147,8 @@ async function consult(){
   busy($('consultar'),true,'');
   try{
     const x=await api('consulta',{pin:session.get('pin'),codigo});last=x;
-    if(x.estado==='Pendiente')card('pend',x.nombre,'Puede recoger',`<p class="muted" style="margin:6px 0 14px">${clean(x.grupo)} · Código ${clean(x.codigo)}</p><button class="btn ok block lg" id="entregar" type="button">Entregar ramo</button>`);
-    else if(x.estado==='Entregado')card('done',x.nombre,'Ya entregado','<p style="margin:10px 0 0">Este ramo ya se recogió. No entregar otro.</p>');
+    if(x.estado==='Pendiente')card('pend',x.nombre,'Puede recoger',`${x.rep?`<p style="margin:10px 0 0"><span class="tag rep">Representante</span><span class="rep-line">${clean(x.rep)}</span></p>`:''}<p class="muted" style="margin:6px 0 14px">${clean(x.grupo)} · Código ${clean(x.codigo)}</p><button class="btn ok block lg" id="entregar" type="button">Entregar ramo</button>`);
+    else if(x.estado==='Entregado')card('done',x.nombre,'Ya entregado','<p style="margin:10px 0 0">Este ramo ya se recogió'+(x.entregado?' ('+clean(x.entregado)+')':'')+'. No entregar otro.</p>');
     else card('err',x.nombre,x.estado,'<p style="margin:10px 0 0">Esta tarjeta no es válida.</p>');
   }catch(e){
     if(/PIN/i.test(e.message)){session.clear();location.reload();return;}

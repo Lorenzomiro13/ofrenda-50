@@ -4,9 +4,9 @@ export default async (request) => {
  if(request.method!=='POST')return respond(405,{ok:false,error:'Método no permitido'});
  if(!process.env.APPS_SCRIPT_URL||!process.env.OFRENDA_API_KEY)return respond(503,{ok:false,error:'Configura APPS_SCRIPT_URL y OFRENDA_API_KEY en Netlify'});
  try{
-  const x=await request.json(),allowed=['catalogo','inscribir','editar','consulta','entregar','estadisticas','tarjeta'];
+  const x=await request.json(),allowed=['catalogo','inscribir','editar','consulta','entregar','estadisticas','tarjeta','reenviar'];
   if(!allowed.includes(x.action))return respond(400,{ok:false,error:'Acción inválida'});
-  const restricted=['consulta','entregar','estadisticas'];
+  const restricted=['consulta','entregar','estadisticas','reenviar'];
   if(restricted.includes(x.action)&&(!x.data?.pin||String(x.data.pin).length<8))return respond(403,{ok:false,error:'Se requiere PIN administrativo'});
   const ctl=new AbortController(),id=setTimeout(()=>ctl.abort(),26000);
   try{

@@ -53,21 +53,37 @@
 
     <div class="card">
       <div class="row" style="margin-bottom:4px">
-        <h2 style="font-size:21px">Sin responder <span class="muted" id="pendCount" style="font-family:var(--sans);font-size:16px"></span></h2>
+        <h2 style="font-size:21px">Falleros <span class="muted" id="count" style="font-family:var(--sans);font-size:16px"></span></h2>
         <button class="btn ghost" id="copy" type="button" style="flex:none">Copiar lista</button>
       </div>
+      <div class="chips" id="tabs" role="group" aria-label="Filtrar por estado">
+        <button type="button" class="chip" aria-pressed="false" data-f="pend">Sin responder <span id="nPend"></span></button>
+        <button type="button" class="chip" aria-pressed="false" data-f="resp">Han respondido <span id="nResp"></span></button>
+        <button type="button" class="chip" aria-pressed="false" data-f="rep">Representantes <span id="nRep"></span></button>
+        <button type="button" class="chip" aria-pressed="true" data-f="">Todos <span id="nAll"></span></button>
+      </div>
       <div class="row" style="margin-top:10px">
-        <div class="search" style="flex:2"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="find" type="search" placeholder="Buscar nombre" aria-label="Buscar en pendientes"></div>
+        <div class="search" style="flex:2"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="find" type="search" placeholder="Buscar nombre o correo" aria-label="Buscar"></div>
         <select id="fgroup" aria-label="Filtrar por grupo" style="flex:1"><option value="">Todos</option><option>Hombres</option><option>Mujeres</option><option>Niños</option><option>Niñas</option></select>
       </div>
-      <div class="list" id="pending"></div>
+      <div class="plist" id="people"></div>
     </div>
   </section>
 </main>
 
+<dialog id="dlg">
+  <form method="dialog" id="dlgForm">
+    <h2 style="font-size:22px;margin-bottom:6px">Reenviar tarjeta QR</h2>
+    <p class="muted" id="dlgName" style="margin:0 0 10px"></p>
+    <label class="lbl" for="dlgEmail">Enviar a</label>
+    <input id="dlgEmail" type="email" required>
+    <p class="notice" style="font-size:13.5px">Se genera un QR nuevo y <b>el anterior deja de valer</b>.</p>
+    <div class="row"><button class="btn ghost" value="cancel" formnovalidate type="submit" id="dlgCancel">Cancelar</button><button class="btn" id="dlgSend" type="button">Enviar QR</button></div>
+  </form>
+</dialog>
 <script src="common.js"></script>
 <script>
-let pending=[],timer=null;
+let people=[],filtro='',sel=null,timer=null;
 const pct=(a,b)=>b?Math.round(a/b*100):0;
 function tile(k,v,of,accent){return `<div class="tile ${accent?'accent':''}"><div class="k">${k}</div><div class="v">${v}${of!=null?` <small>de ${of}</small>`:''}</div>${of!=null?`<div class="meter"><i style="width:${pct(v,of)}%"></i></div>`:''}</div>`;}
 async function load(){
@@ -78,18 +94,47 @@ async function load(){
     tile('Solicitan flor',r.flores)+
     tile('Ramos entregados',r.entregados,r.flores)+
     tile('Ramos por entregar',Math.max(0,r.flores-r.entregados))+
-    tile('Sin responder',r.total-r.respuestas);
+    tile('Sin responder',r.total-r.respuestas)+
+    ((r.representantes||[]).length?tile('Representantes que participan',r.representantes.filter(x=>x.estado==='Asiste').length,r.representantes.length):'');
   $('groups').innerHTML=r.grupos.map(g=>`<tr><td><b>${clean(g.grupo)}</b></td><td class="num">${g.censo}</td><td><div class="minibar"><span class="num">${g.respondido}</span><div class="meter"><i style="width:${pct(g.respondido,g.censo)}%"></i></div></div></td><td class="num">${g.participa}</td><td class="num">${g.flores}</td></tr>`).join('');
-  pending=r.pendientes.sort((a,b)=>a.nombre.localeCompare(b.nombre,'es'));showPending();
+  people=r.personas||[];
+  $('nAll').textContent=people.length;$('nPend').textContent=people.filter(x=>x.estado==='Sin responder').length;
+  $('nResp').textContent=people.filter(x=>x.estado!=='Sin responder').length;$('nRep').textContent=people.filter(x=>x.rep).length;
+  showPeople();
   $('updated').textContent='Actualizado a las '+new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});
 }
-function filtered(){const q=norm($('find').value),g=$('fgroup').value;return pending.filter(x=>(!g||x.grupo===g)&&norm(x.nombre).includes(q));}
-function showPending(){
-  const l=filtered();$('pendCount').textContent='· '+l.length;
-  $('pending').innerHTML=l.length?l.map(x=>`<div><span>${clean(x.nombre)}</span><span class="tag">${clean(x.grupo)}</span></div>`).join(''):'<div class="empty" style="display:block">Nadie pendiente con ese filtro.</div>';
+const EST={'Asiste':'background:var(--ok-soft);color:var(--ok)','No asiste':'background:#eef1f6;color:#4b4f58','Sin responder':'background:var(--warn-soft);color:var(--warn)'};
+function filtered(){
+  const q=norm($('find').value),g=$('fgroup').value;
+  return people.filter(x=>(!g||x.grupo===g)&&
+    (filtro!=='pend'||x.estado==='Sin responder')&&(filtro!=='resp'||x.estado!=='Sin responder')&&(filtro!=='rep'||x.rep)&&
+    (!q||norm(x.nombre+' '+x.email).includes(q)));
 }
-$('find').oninput=showPending;$('fgroup').onchange=showPending;
-$('copy').onclick=async()=>{try{await navigator.clipboard.writeText(filtered().map(x=>x.nombre+' ('+x.grupo+')').join('\n'));toast('Lista copiada');}catch(e){toast('No se pudo copiar',true);}};
+function showPeople(){
+  const l=filtered();$('count').textContent='· '+l.length;
+  $('people').innerHTML=l.length?l.slice(0,400).map(x=>{
+    const ramo=x.flor?(x.ramo==='Entregado'?'Ramo entregado':'Con flor · ramo pendiente'):(x.estado==='Asiste'?'Sin flor':'');
+    const puede=x.estado==='Asiste'&&x.flor&&x.ramo!=='Entregado';
+    return `<div class="prow">
+      <div class="pmain"><b>${clean(x.nombre)}</b> <span class="tag">${clean(x.grupo)}</span>${x.rep?` <span class="tag rep">Representante</span><span class="rep-line">${clean(x.rep)}</span>`:''}
+        ${x.email?`<span class="rep-line">${clean(x.email)}${x.fecha?' · '+clean(x.fecha):''}</span>`:''}</div>
+      <div class="pside"><span class="tag" style="${EST[x.estado]||''}">${clean(x.estado)}</span>${ramo?`<span class="rep-line">${ramo}</span>`:''}
+        ${puede?`<button class="btn ghost sm" type="button" data-qr="${clean(x.id)}">Reenviar QR</button>`:''}</div>
+    </div>`;}).join('')+(l.length>400?'<div class="empty">Mostrando 400. Usa el buscador.</div>':''):'<div class="empty">Nadie con ese filtro.</div>';
+}
+$('tabs').addEventListener('click',e=>{const b=e.target.closest('.chip');if(!b)return;filtro=b.dataset.f;$('tabs').querySelectorAll('.chip').forEach(c=>c.setAttribute('aria-pressed',c===b));showPeople();});
+$('find').oninput=showPeople;$('fgroup').onchange=showPeople;
+$('copy').onclick=async()=>{try{await navigator.clipboard.writeText(filtered().map(x=>x.nombre+' ('+x.grupo+')'+(x.rep?' - '+x.rep:'')+' - '+x.estado).join('\n'));toast('Lista copiada');}catch(e){toast('No se pudo copiar',true);}};
+$('people').addEventListener('click',e=>{
+  const b=e.target.closest('[data-qr]');if(!b)return;sel=people.find(x=>x.id===b.dataset.qr);if(!sel)return;
+  $('dlgName').textContent=sel.nombre;$('dlgEmail').value=sel.email||'';$('dlg').showModal();
+});
+$('dlgSend').onclick=async()=>{
+  const email=$('dlgEmail').value.trim();if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){toast('Correo no válido',true);return;}
+  busy($('dlgSend'),true,'Enviando…');
+  try{await api('reenviar',{pin:session.get('pin'),id:sel.id,email});$('dlg').close();toast('QR reenviado a '+email);sel.email=email;}
+  catch(err){toast(err.message,true);}finally{busy($('dlgSend'),false);}
+};
 async function start(){
   $('login').hidden=true;$('content').hidden=false;$('logout').hidden=false;
   try{await load();}catch(e){if(/PIN/i.test(e.message)){session.clear();location.reload();}else info(e.message,true);}
