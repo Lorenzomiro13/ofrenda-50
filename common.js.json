@@ -1,0 +1,52 @@
+/* Utilidades compartidas */
+const ESCUDO='https://stgarchivosutd.blob.core.windows.net/mailing/2Mesa_de_trabajo.png';
+const $=id=>document.getElementById(id);
+const clean=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+async function api(action,data={}){
+  let r;
+  try{r=await fetch('/api',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,data}),cache:'no-store'});}
+  catch(e){throw Error('Sin conexión. Revisa tu internet e inténtalo de nuevo.');}
+  let j;try{j=await r.json();}catch(e){throw Error('El servidor no responde correctamente. Inténtalo en unos minutos.');}
+  if(!j.ok)throw Error(j.error||'Error del servidor');
+  return j.data;
+}
+
+/* Mensaje fijo dentro de la página (id="msg") */
+function info(text,bad=false){
+  const m=$('msg');if(!m)return toast(text,bad);
+  m.className='notice '+(bad?'error':'success');m.textContent=text;m.hidden=false;
+  m.scrollIntoView({behavior:'smooth',block:'center'});
+}
+/* Aviso flotante breve */
+function toast(text,bad=false){
+  document.querySelectorAll('.toast').forEach(t=>t.remove());
+  const t=document.createElement('div');t.className='toast'+(bad?' bad':'');t.textContent=text;t.setAttribute('role','status');
+  document.body.appendChild(t);setTimeout(()=>t.remove(),3200);
+}
+/* Botón en estado "cargando" */
+function busy(btn,on,label){
+  if(!btn)return;
+  if(on){btn.dataset.txt=btn.innerHTML;btn.disabled=true;btn.innerHTML='<span class="spin" aria-hidden="true"></span>'+(label||'Un momento…');}
+  else{btn.disabled=false;if(btn.dataset.txt)btn.innerHTML=btn.dataset.txt;}
+}
+/* PIN de la comisión: se guarda solo mientras la pestaña esté abierta */
+const session={
+  get(k){try{return sessionStorage.getItem('of50_'+k)||''}catch(e){return ''}},
+  set(k,v){try{sessionStorage.setItem('of50_'+k,v)}catch(e){}},
+  clear(){try{['pin','vol'].forEach(k=>sessionStorage.removeItem('of50_'+k))}catch(e){}}
+};
+const initials=n=>String(n||'').split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+const norm=s=>String(s||'').toLocaleLowerCase('es').normalize('NFD').replace(/[̀-ͯ]/g,'');
+/* Nombres en formato normal y cargos agrupados */
+const MIN=new Set(['de','del','la','las','los','y','i','d']);
+const tc=t=>String(t||'').toLocaleLowerCase('es').split(/\s+/).map((w,i)=>i&&MIN.has(w)?w:w.charAt(0).toLocaleUpperCase('es')+w.slice(1)).join(' ');
+/* Compacta «Presidente 2018 · Presidente 2019 · …» → «Presidente 2018–2019» (por si el servidor aún no lo hace) */
+function compactRep(txt){
+  if(!txt)return '';const orden=[],por={};
+  txt.split('·').map(x=>x.trim()).forEach(p=>{const m=p.match(/^(.*?)\s+(\d{4})(?:[–-](\d{4}))?$/);if(!m){orden.push(p);por[p]=null;return;}
+    const t=m[1];if(!(t in por)){por[t]=[];orden.push(t);}if(por[t])for(let y=+m[2];y<=+(m[3]||m[2]);y++)por[t].push(y);});
+  return orden.map(t=>{const ys=por[t];if(!ys)return t;ys.sort((a,b)=>a-b);const r=[];
+    ys.forEach(y=>{const u=r[r.length-1];if(u&&y<=u[1]+1)u[1]=Math.max(u[1],y);else r.push([y,y]);});
+    return t+' '+r.map(x=>x[0]===x[1]?x[0]:x[0]+'–'+x[1]).join(', ');}).join(' · ');
+}
