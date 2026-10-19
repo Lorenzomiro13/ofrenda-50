@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#7c1d2e">
+<title>Entrega de ramos · Ofrenda 50</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="topbar">
+  <div class="brand"><img src="https://stgarchivosutd.blob.core.windows.net/mailing/2Mesa_de_trabajo.png" onerror="this.style.visibility='hidden'" alt="">Entrega de ramos</div>
+  <nav class="row" style="flex:none;gap:16px"><a href="/panel.html">Panel</a><a href="#" id="logout" hidden>Salir</a></nav>
+</div>
+
+<main class="wrap flat">
+  <div id="msg" hidden></div>
+
+  <!-- Acceso -->
+  <section class="card" id="login">
+    <div class="step"><span class="n">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+    </span><h2>Acceso comisión</h2></div>
+    <p class="sub">Solo personal autorizado. El PIN se recuerda mientras tengas esta pestaña abierta.</p>
+    <form id="loginForm">
+      <label class="lbl" for="vol">Tu nombre</label>
+      <input id="vol" autocomplete="name" placeholder="Nombre y apellidos" required>
+      <label class="lbl" for="pin">PIN de la comisión</label>
+      <input id="pin" type="password" autocomplete="current-password" required>
+      <button class="btn block lg" id="enter" style="margin-top:18px">Entrar</button>
+    </form>
+  </section>
+
+  <!-- Lector -->
+  <section id="app" hidden>
+    <div class="tiles" style="margin-bottom:16px">
+      <div class="tile accent"><div class="k">Ramos entregados</div><div class="v"><span id="cEnt">0</span> <small>de <span id="cTot">0</span></small></div><div class="meter"><i id="cBar" style="width:0"></i></div></div>
+    </div>
+
+    <div class="card">
+      <div class="scanner" id="scanner">
+        <video id="video" playsinline muted hidden></video>
+        <div class="frame" id="frame" hidden></div>
+        <div class="idle" id="idle">
+          <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><path d="M8 12h8"/></svg>
+          <p style="margin-top:8px">Pulsa «Escanear» y apunta al QR de la tarjeta</p>
+        </div>
+      </div>
+      <p class="muted small" id="camStatus" style="text-align:center;margin:10px 0 0"></p>
+      <div class="row" style="margin-top:12px">
+        <button class="btn lg" id="cam" type="button">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
+          Escanear
+        </button>
+        <label class="btn ghost lg" style="cursor:pointer">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/></svg>
+          Desde foto
+          <input type="file" accept="image/*" id="photo" hidden>
+        </label>
+      </div>
+
+      <form id="manual" style="margin-top:18px">
+        <label class="lbl" for="codigo">O escribe el código de 6 cifras</label>
+        <div class="row">
+          <input id="codigo" class="code-input" inputmode="numeric" autocomplete="off" maxlength="12" placeholder="000000" style="flex:2">
+          <button class="btn ghost lg" id="consultar" style="flex:1">Buscar</button>
+        </div>
+      </form>
+
+      <div id="result"></div>
+    </div>
+  </section>
+</main>
+
+<script src="common.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script>
+let stream=null,running=false,frameId=0,last=null,detector=null,stats={ent:0,tot:0};
+const video=$('video');
+
+/* ---------- Sesión ---------- */
+function showApp(){ $('login').hidden=true;$('app').hidden=false;$('logout').hidden=false;$('msg').hidden=true;paintStats(); }
+function paintStats(){ $('cEnt').textContent=stats.ent;$('cTot').textContent=stats.tot;$('cBar').style.width=(stats.tot?Math.min(100,stats.ent/stats.tot*100):0)+'%'; }
+async function loadStats(pin){ const r=await api('estadisticas',{pin});stats={ent:r.entregados,tot:r.flores};paintStats(); }
+$('loginForm').addEventListener('submit',async e=>{
+  e.preventDefault();const pin=$('pin').value.trim(),vol=$('vol').value.trim();
+  if(!vol)return toast('Escribe tu nombre',true);
+  busy($('enter'),true,'Comprobando…');
+  try{await loadStats(pin);session.set('pin',pin);session.set('vol',vol);showApp();}
+  catch(err){info(err.message,true);}finally{busy($('enter'),false);}
+});
+$('logout').addEventListener('click',e=>{e.preventDefault();stop();session.clear();location.reload();});
+if(session.get('pin')&&session.get('vol')){$('vol').value=session.get('vol');showApp();loadStats(session.get('pin')).catch(()=>{});}
+
+/* ---------- Cámara ---------- */
+function stop(){running=false;cancelAnimationFrame(frameId);if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;video.hidden=true;$('frame').hidden=true;$('idle').hidden=false;$('camStatus').textContent='';}
+function gotCode(raw){
+  const x=String(raw||'').trim().replace(/^OF50:/i,'').replace(/[\s-]/g,'');if(!x)return;
+  if(navigator.vibrate)navigator.vibrate(80);
+  $('codigo').value=x;stop();consult();
+}
+const cv=document.createElement('canvas'),cx=cv.getContext('2d',{willReadFrequently:true});
+async function scan(){
+  if(!running)return;
+  try{
+    if(video.readyState>=2&&video.videoWidth){
+      if(detector){const c=await detector.detect(video);if(c.length){gotCode(c[0].rawValue);return;}}
+      else if(typeof jsQR==='function'){
+        const s=Math.min(1,640/video.videoWidth);cv.width=video.videoWidth*s|0;cv.height=video.videoHeight*s|0;
+        cx.drawImage(video,0,0,cv.width,cv.height);const im=cx.getImageData(0,0,cv.width,cv.height);
+        const q=jsQR(im.data,cv.width,cv.height,{inversionAttempts:'dontInvert'});if(q){gotCode(q.data);return;}
+      }
+    }
+  }catch(e){$('camStatus').textContent=e.message;}
+  frameId=requestAnimationFrame(scan);
+}
+$('cam').onclick=async()=>{
+  if(running){stop();return;}
+  if(!navigator.mediaDevices?.getUserMedia){$('camStatus').textContent='Este navegador no permite usar la cámara. Usa «Desde foto» o escribe el código.';return;}
+  try{
+    if('BarcodeDetector' in window){try{detector=new BarcodeDetector({formats:['qr_code']});}catch(_){detector=null;}}
+    stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'environment'}}});
+    video.srcObject=stream;video.hidden=false;$('frame').hidden=false;$('idle').hidden=true;await video.play();
+    running=true;$('camStatus').textContent='Apunta al código QR';$('result').innerHTML='';scan();
+  }catch(e){$('camStatus').textContent='No se pudo abrir la cámara: '+e.message;stop();}
+};
+$('photo').onchange=async e=>{
+  const file=e.target.files[0];e.target.value='';if(!file)return;
+  try{
+    if(typeof jsQR!=='function')throw Error('No se ha cargado el lector QR. Revisa la conexión.');
+    const b=await createImageBitmap(file),s=Math.min(1,1200/Math.max(b.width,b.height)),c=document.createElement('canvas');
+    c.width=b.width*s|0;c.height=b.height*s|0;const g=c.getContext('2d');g.drawImage(b,0,0,c.width,c.height);
+    const r=jsQR(g.getImageData(0,0,c.width,c.height).data,c.width,c.height);
+    if(!r)throw Error('No se detecta ningún QR en la foto');gotCode(r.data);
+  }catch(err){toast(err.message,true);}
+};
+window.addEventListener('pagehide',stop);
+
+/* ---------- Consulta y entrega ---------- */
+function card(cls,title,state,body=''){ $('result').innerHTML=`<div class="result-card ${cls}"><h3>${clean(title)}</h3>${state?`<span class="st">${clean(state)}</span>`:''}${body}</div>`; $('result').scrollIntoView({behavior:'smooth',block:'nearest'}); }
+async function consult(){
+  last=null;const codigo=$('codigo').value.trim();if(!codigo)return toast('Escribe o escanea un código',true);
+  busy($('consultar'),true,'');
+  try{
+    const x=await api('consulta',{pin:session.get('pin'),codigo});last=x;
+    if(x.estado==='Pendiente')card('pend',x.nombre,'Puede recoger',`<p class="muted" style="margin:6px 0 14px">${clean(x.grupo)} · Código ${clean(x.codigo)}</p><button class="btn ok block lg" id="entregar" type="button">Entregar ramo</button>`);
+    else if(x.estado==='Entregado')card('done',x.nombre,'Ya entregado','<p style="margin:10px 0 0">Este ramo ya se recogió. No entregar otro.</p>');
+    else card('err',x.nombre,x.estado,'<p style="margin:10px 0 0">Esta tarjeta no es válida.</p>');
+  }catch(e){
+    if(/PIN/i.test(e.message)){session.clear();location.reload();return;}
+    card('err','No encontrado','',`<p style="margin:6px 0 0">${clean(e.message)}</p>`);
+  }finally{busy($('consultar'),false);}
+}
+$('manual').addEventListener('submit',e=>{e.preventDefault();consult();});
+$('result').addEventListener('click',async e=>{
+  const b=e.target.closest('#entregar');if(!b||!last)return;
+  busy(b,true,'Registrando…');
+  try{
+    const r=await api('entregar',{pin:session.get('pin'),codigo:$('codigo').value.trim(),voluntario:session.get('vol')});
+    stats.ent++;paintStats();if(navigator.vibrate)navigator.vibrate([60,40,60]);
+    card('pend',r.nombre,'Entregado ✓',`<p style="margin:10px 0 14px">Entrega registrada a nombre de ${clean(session.get('vol'))}.</p><button class="btn block lg" type="button" id="next">Escanear el siguiente</button>`);
+    $('codigo').value='';last=null;
+  }catch(err){busy(b,false);toast(err.message,true);}
+});
+$('result').addEventListener('click',e=>{if(e.target.closest('#next')){$('result').innerHTML='';$('cam').click();}});
+</script>
+</body>
+</html>

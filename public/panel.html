@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#7c1d2e">
+<title>Panel · Ofrenda 50</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>.wrap{max-width:960px}</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="brand"><img src="https://stgarchivosutd.blob.core.windows.net/mailing/2Mesa_de_trabajo.png" onerror="this.style.visibility='hidden'" alt="">Panel de la Ofrenda</div>
+  <nav class="row" style="flex:none;gap:16px"><a href="/lector.html">Lector</a><a href="#" id="logout" hidden>Salir</a></nav>
+</div>
+
+<main class="wrap flat">
+  <div id="msg" hidden></div>
+
+  <section class="card" id="login" style="max-width:460px;margin:0 auto">
+    <div class="step"><span class="n">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+    </span><h2>Acceso comisión</h2></div>
+    <form id="loginForm">
+      <label class="lbl" for="pin">PIN de la comisión</label>
+      <input id="pin" type="password" autocomplete="current-password" required>
+      <button class="btn block lg" id="enter" style="margin-top:18px">Ver panel</button>
+    </form>
+  </section>
+
+  <section id="content" hidden>
+    <div class="row" style="margin-bottom:14px">
+      <p class="muted small" id="updated" style="margin:0"></p>
+      <button class="btn ghost" id="refresh" type="button" style="flex:none">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg>
+        Actualizar
+      </button>
+    </div>
+
+    <div class="tiles" id="tiles"></div>
+
+    <div class="card" style="margin-top:16px">
+      <h2 style="font-size:21px;margin-bottom:12px">Por grupos</h2>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Grupo</th><th>Censo</th><th>Respondido</th><th>Participan</th><th>Flores</th></tr></thead>
+        <tbody id="groups"></tbody>
+      </table></div>
+    </div>
+
+    <div class="card">
+      <div class="row" style="margin-bottom:4px">
+        <h2 style="font-size:21px">Sin responder <span class="muted" id="pendCount" style="font-family:var(--sans);font-size:16px"></span></h2>
+        <button class="btn ghost" id="copy" type="button" style="flex:none">Copiar lista</button>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <div class="search" style="flex:2"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="find" type="search" placeholder="Buscar nombre" aria-label="Buscar en pendientes"></div>
+        <select id="fgroup" aria-label="Filtrar por grupo" style="flex:1"><option value="">Todos</option><option>Hombres</option><option>Mujeres</option><option>Niños</option><option>Niñas</option></select>
+      </div>
+      <div class="list" id="pending"></div>
+    </div>
+  </section>
+</main>
+
+<script src="common.js"></script>
+<script>
+let pending=[],timer=null;
+const pct=(a,b)=>b?Math.round(a/b*100):0;
+function tile(k,v,of,accent){return `<div class="tile ${accent?'accent':''}"><div class="k">${k}</div><div class="v">${v}${of!=null?` <small>de ${of}</small>`:''}</div>${of!=null?`<div class="meter"><i style="width:${pct(v,of)}%"></i></div>`:''}</div>`;}
+async function load(){
+  const r=await api('estadisticas',{pin:session.get('pin')});
+  $('tiles').innerHTML=
+    tile('Han respondido',r.respuestas,r.total,true)+
+    tile('Participarán',r.participan)+
+    tile('Solicitan flor',r.flores)+
+    tile('Ramos entregados',r.entregados,r.flores)+
+    tile('Ramos por entregar',Math.max(0,r.flores-r.entregados))+
+    tile('Sin responder',r.total-r.respuestas);
+  $('groups').innerHTML=r.grupos.map(g=>`<tr><td><b>${clean(g.grupo)}</b></td><td class="num">${g.censo}</td><td><div class="minibar"><span class="num">${g.respondido}</span><div class="meter"><i style="width:${pct(g.respondido,g.censo)}%"></i></div></div></td><td class="num">${g.participa}</td><td class="num">${g.flores}</td></tr>`).join('');
+  pending=r.pendientes.sort((a,b)=>a.nombre.localeCompare(b.nombre,'es'));showPending();
+  $('updated').textContent='Actualizado a las '+new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});
+}
+function filtered(){const q=norm($('find').value),g=$('fgroup').value;return pending.filter(x=>(!g||x.grupo===g)&&norm(x.nombre).includes(q));}
+function showPending(){
+  const l=filtered();$('pendCount').textContent='· '+l.length;
+  $('pending').innerHTML=l.length?l.map(x=>`<div><span>${clean(x.nombre)}</span><span class="tag">${clean(x.grupo)}</span></div>`).join(''):'<div class="empty" style="display:block">Nadie pendiente con ese filtro.</div>';
+}
+$('find').oninput=showPending;$('fgroup').onchange=showPending;
+$('copy').onclick=async()=>{try{await navigator.clipboard.writeText(filtered().map(x=>x.nombre+' ('+x.grupo+')').join('\n'));toast('Lista copiada');}catch(e){toast('No se pudo copiar',true);}};
+async function start(){
+  $('login').hidden=true;$('content').hidden=false;$('logout').hidden=false;
+  try{await load();}catch(e){if(/PIN/i.test(e.message)){session.clear();location.reload();}else info(e.message,true);}
+  clearInterval(timer);timer=setInterval(()=>{if(!document.hidden)load().catch(()=>{});},120000);
+}
+$('loginForm').addEventListener('submit',async e=>{
+  e.preventDefault();busy($('enter'),true,'Comprobando…');
+  try{const pin=$('pin').value.trim();await api('estadisticas',{pin});session.set('pin',pin);$('msg').hidden=true;start();}
+  catch(err){info(err.message,true);}finally{busy($('enter'),false);}
+});
+$('refresh').onclick=async()=>{busy($('refresh'),true,'');try{await load();toast('Datos actualizados');}catch(e){toast(e.message,true);}finally{busy($('refresh'),false);}};
+$('logout').addEventListener('click',e=>{e.preventDefault();session.clear();location.reload();});
+if(session.get('pin'))start();
+</script>
+</body>
+</html>
