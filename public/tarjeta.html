@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#7c1d2e">
+<meta name="theme-color" content="#14284b">
 <title>Mi tarjeta · Ofrenda 50 Aniversario</title>
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -47,13 +47,13 @@
 <script>
 $('print').onclick=()=>window.print();
 (async()=>{
-  const codigo=new URLSearchParams(location.search).get('codigo');
+  const sp=new URLSearchParams(location.search),codigo=sp.get('codigo')||sp.get('qr');
   try{
     if(!codigo)throw Error('Falta el código de la tarjeta. Abre el enlace que recibiste por correo.');
     const d=await api('tarjeta',{codigo});
     if(d.logo)$('logo').src=d.logo;
     $('date').textContent=d.fecha;$('name').textContent=d.nombre;$('group').textContent=d.grupo;$('code').textContent=d.codigo;
-    $('qr').src='https://quickchart.io/qr?size=400&margin=1&dark=231c1d&text='+encodeURIComponent('OF50:'+d.codigo);
+    $('qr').src=d.qrUrl||('https://quickchart.io/qr?size=400&margin=1&text='+encodeURIComponent('OF50:'+d.codigo));
     $('pass').hidden=false;$('actions').hidden=false;
   }catch(e){info(e.message,true);}
   finally{$('loading').hidden=true;}

@@ -9,7 +9,7 @@ ofrenda-netlify/
 │   ├── tarjeta.html → tarjeta QR descargable
 │   ├── lector.html  → entrega de ramos (comisión, con PIN)
 │   └── panel.html   → panel de seguimiento (comisión, con PIN)
-└── apps-script/                 ← código para pegar en el Google Sheets
+└── apps-script/Api.gs          ← archivo NUEVO para añadir al Apps Script
 ```
 
 > **Importante:** sube la carpeta **completa** `ofrenda-netlify`, no solo `public`.
@@ -17,14 +17,15 @@ ofrenda-netlify/
 
 ---
 
-## Paso 1 · Google Sheets (5 min)
+## Paso 1 · Google Sheets (5 min) — NO se borra nada
 
-1. Abre el Google Sheets del censo → **Extensiones › Apps Script**.
-2. Guarda una copia del código actual. Sustituye `Código.gs` por `apps-script/Code.gs`.
-3. Ejecuta **instalarSistema** (acepta los permisos) y luego **configurarAccesos**:
-   - **Clave API**: inventa una de 32+ caracteres (puedes generarla en <https://www.uuidgenerator.net>, juntando dos). Apúntala.
-   - **PIN de la comisión**: 8+ caracteres. Es el que usaréis en el lector y el panel.
-4. **Implementar › Nueva implementación › Aplicación web** → Ejecutar como **Yo**, acceso **Cualquier persona** → copia la URL que acaba en `/exec`.
+1. Abre el Google Sheets → **Extensiones › Apps Script**. Deja `Código.gs` **tal como está**.
+2. Pulsa **＋ › Secuencia de comandos**, llámalo `Api` y pega dentro `apps-script/Api.gs`. Guarda.
+3. **Configuración del proyecto (rueda) › Propiedades del script › Añadir**:
+   `API_KEY` = una clave de 32+ letras y números (apúntala, se pone igual en Netlify).
+4. El PIN es el que ya usáis en el lector (menú 🌸 OFRENDA 50 › Configurar PIN del lector).
+5. **Implementar › Gestionar implementaciones** → lápiz → Versión: **Nueva versión** → Implementar.
+   Comprueba «Ejecutar como: Yo» y «Acceso: Cualquier persona». Copia la URL que acaba en `/exec`.
 
 ## Paso 2 · Netlify (5 min)
 
@@ -48,11 +49,10 @@ Después, en Netlify → **Project configuration › Environment variables**, a�
 
 Y vuelve a desplegar (**Deploys › Trigger deploy**).
 
-## Paso 3 · Cerrar el círculo
+## Paso 3 · Que los correos apunten a Netlify
 
-En Apps Script → **Configuración del proyecto › Propiedades del script** → añade
-`SITE_URL` = la dirección de Netlify (por ejemplo `https://ofrenda-falla.netlify.app`, sin barra final).
-Así los correos llevan el enlace a la tarjeta y a «modificar inscripción».
+En la hoja **CONFIGURACION** añade una fila: `WEBAPP_URL` | `https://TU-SITIO.netlify.app` (sin barra final).
+Las tarjetas de los correos se abrirán ya en la nueva web. Los enlaces antiguos siguen funcionando.
 
 ## Prueba rápida
 
@@ -69,7 +69,7 @@ Así los correos llevan el enlace a la tarjeta y a «modificar inscripción».
 - **Panel**: barras de progreso, filtros, «Copiar lista» de pendientes y refresco automático cada 2 min.
 - Los enlaces a Lector y Panel ya no aparecen en la página pública (solo un discreto «Acceso comisión» abajo).
 
-El backend (Apps Script y función) **no cambia**: no hay que tocar datos ni hojas.
+Tu Apps Script actual **no cambia**: solo se añade `Api.gs`. QR, PIN y enlaces ya enviados siguen valiendo.
 
 ## Límites a tener en cuenta
 - La inscripción es pública: cualquiera con el enlace ve la lista nominal y puede responder por otro. El enlace de edición del correo sí es privado.
