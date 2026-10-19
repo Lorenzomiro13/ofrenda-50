@@ -38,3 +38,15 @@ const session={
 };
 const initials=n=>String(n||'').split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
 const norm=s=>String(s||'').toLocaleLowerCase('es').normalize('NFD').replace(/[̀-ͯ]/g,'');
+/* Nombres en formato normal y cargos agrupados */
+const MIN=new Set(['de','del','la','las','los','y','i','d']);
+const tc=t=>String(t||'').toLocaleLowerCase('es').split(/\s+/).map((w,i)=>i&&MIN.has(w)?w:w.charAt(0).toLocaleUpperCase('es')+w.slice(1)).join(' ');
+/* Compacta «Presidente 2018 · Presidente 2019 · …» → «Presidente 2018–2019» (por si el servidor aún no lo hace) */
+function compactRep(txt){
+  if(!txt)return '';const orden=[],por={};
+  txt.split('·').map(x=>x.trim()).forEach(p=>{const m=p.match(/^(.*?)\s+(\d{4})(?:[–-](\d{4}))?$/);if(!m){orden.push(p);por[p]=null;return;}
+    const t=m[1];if(!(t in por)){por[t]=[];orden.push(t);}if(por[t])for(let y=+m[2];y<=+(m[3]||m[2]);y++)por[t].push(y);});
+  return orden.map(t=>{const ys=por[t];if(!ys)return t;ys.sort((a,b)=>a-b);const r=[];
+    ys.forEach(y=>{const u=r[r.length-1];if(u&&y<=u[1]+1)u[1]=Math.max(u[1],y);else r.push([y,y]);});
+    return t+' '+r.map(x=>x[0]===x[1]?x[0]:x[0]+'–'+x[1]).join(', ');}).join(' · ');
+}
